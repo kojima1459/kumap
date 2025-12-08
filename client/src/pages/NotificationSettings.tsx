@@ -8,6 +8,7 @@ import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Bell, BellOff, ChevronLeft } from "lucide-react";
+import Footer from "@/components/Footer";
 
 const PREFECTURES = [
   "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
@@ -152,6 +153,7 @@ export default function NotificationSettings() {
           </CardContent>
         </Card>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, Play, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
+import Footer from "@/components/Footer";
 
 export default function AdminScraper() {
   const { user, loading: authLoading } = useAuth();
@@ -152,6 +153,7 @@ export default function AdminScraper() {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

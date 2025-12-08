@@ -12,6 +12,7 @@ import { MapView } from "@/components/Map";
 import { Loader2, MapPin, Send, AlertTriangle } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
+import Footer from "@/components/Footer";
 
 const PREFECTURES = [
   "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
@@ -314,6 +315,7 @@ export default function SubmitSighting() {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

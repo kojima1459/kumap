@@ -8,6 +8,7 @@ import { Loader2, MapPin, AlertTriangle, Plus, Settings, Calendar, Bell, BarChar
 import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import Footer from "@/components/Footer";
 
 const PREFECTURES = [
   "全国",
@@ -138,12 +139,10 @@ export default function MapView() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-orange-500 to-red-600 p-2 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-white" />
-              </div>
+              <img src="/logo.png" alt="クマップロゴ" className="w-12 h-12" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">クマ出没情報マップ</h1>
-                <p className="text-sm text-gray-600">Bear Sighting Information Map</p>
+                <h1 className="text-2xl font-bold text-gray-900">クマップ</h1>
+                <p className="text-sm text-gray-600">Kumap - Bear Sighting Information Map</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -250,6 +249,7 @@ export default function MapView() {
           />
         </Card>
       </div>
+      <Footer />
     </div>
   );
 }

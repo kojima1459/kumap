@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, BarChart3 } from "lucide-react";
 import { useLocation } from "wouter";
+import Footer from "@/components/Footer";
 
 interface PrefectureStats {
   prefecture: string;
@@ -215,6 +216,7 @@ export default function StatsMapView() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
