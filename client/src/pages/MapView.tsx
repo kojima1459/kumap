@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { PREFECTURE_MAP_URLS } from "../../../server/prefectureUrlMapping";
 import { MapView as GoogleMapView } from "@/components/Map";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,14 @@ export default function MapView() {
             ${sighting.bearType ? `<p style="margin-bottom: 4px;"><strong>クマの種類:</strong> ${sighting.bearType}</p>` : ""}
             ${sighting.description ? `<p style="margin-bottom: 4px;"><strong>説明:</strong> ${sighting.description}</p>` : ""}
             ${sighting.sourceUrl ? `<p style="margin-top: 8px;"><a href="${sighting.sourceUrl}" target="_blank" style="color: #3b82f6;">情報源を見る →</a></p>` : ""}
+            ${PREFECTURE_MAP_URLS[sighting.prefecture] ? `
+              <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                <p style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">詳細はこちらでも確認できます：</p>
+                <a href="${PREFECTURE_MAP_URLS[sighting.prefecture]}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; font-size: 13px; text-decoration: underline;">
+                  ${sighting.prefecture}の公式クマ出没情報マップ →
+                </a>
+              </div>
+            ` : ""}
           </div>
         `;
         infoWindow.setContent(content);
