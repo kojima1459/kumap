@@ -9,6 +9,7 @@ import * as cheerio from "cheerio";
 import { insertBearSighting, getDb } from "./db";
 import { bearSightings } from "../drizzle/schema";
 import { and, eq } from "drizzle-orm";
+import { PREFECTURE_MAP_URLS } from "./prefectureUrlMapping";
 
 const YAHOO_BEAR_PAGE = "https://emg.yahoo.co.jp/notebook/contents/article/bearsummary251114.html";
 
@@ -155,8 +156,9 @@ export async function processScraping() {
     const coords = PREFECTURE_COORDS[link.prefecture];
     if (!coords) continue;
 
-    const sourceUrl = link.mapUrl || link.summaryUrl;
-    if (!sourceUrl) continue;
+      // Use accurate URL mapping if available, otherwise use scraped URL
+      const sourceUrl = PREFECTURE_MAP_URLS[link.prefecture] || link.mapUrl || link.summaryUrl;
+      if (!sourceUrl) continue;
 
     try {
       // Check for duplicate: same prefecture + sourceUrl
