@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { PREFECTURE_MAP_URLS } from "../../../server/prefectureUrlMapping";
 import { MapView } from "@/components/Map";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -192,6 +193,20 @@ export default function StatsMapView() {
                           style={{ width: `${stat.percentage}%` }}
                         />
                       </div>
+                      {PREFECTURE_MAP_URLS[stat.prefecture] && (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <p className="text-xs text-gray-600 mb-1">詳細はこちらでも確認できます：</p>
+                          <a
+                            href={PREFECTURE_MAP_URLS[stat.prefecture]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800 underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            公式マップを開く →
+                          </a>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
