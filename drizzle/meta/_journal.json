@@ -15,6 +15,13 @@
       "when": 1765163805870,
       "tag": "0001_sticky_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1765174948094,
+      "tag": "0002_vengeful_mantis",
+      "breakpoints": true
     }
   ]
 }

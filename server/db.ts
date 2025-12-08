@@ -135,7 +135,19 @@ export async function insertBearSighting(sighting: InsertBearSighting) {
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(bearSightings).values(sighting);
-  return result;
+  
+  // Get the inserted record using the insert result
+  const insertedId = (result as any).insertId;
+  if (insertedId) {
+    const inserted = await db
+      .select()
+      .from(bearSightings)
+      .where(eq(bearSightings.id, Number(insertedId)))
+      .limit(1);
+    return inserted[0] || null;
+  }
+  
+  return null;
 }
 
 /**

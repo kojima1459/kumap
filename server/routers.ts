@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { scraperRouter } from "./scraperRouter";
+import { notificationRouter } from "./notificationRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import {
@@ -11,6 +12,7 @@ import {
   getPendingSightings,
   updateSightingStatus,
 } from "./db";
+import { notifyUsersOfNewSighting } from "./notificationService";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -26,6 +28,8 @@ export const appRouter = router({
       } as const;
     }),
   }),
+
+  notifications: notificationRouter,
 
   bearSightings: router({
     /**
@@ -64,12 +68,26 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        return insertBearSighting({
+        const sighting = await insertBearSighting({
           ...input,
           sourceType: "user",
           userId: ctx.user.id,
           status: "approved", // Auto-approve for now, can change to "pending" later
         });
+
+        // Send notifications to subscribed users
+        if (sighting) {
+          await notifyUsersOfNewSighting({
+            id: sighting.id,
+            prefecture: sighting.prefecture,
+            city: sighting.city || undefined,
+            sightedAt: sighting.sightedAt,
+            description: sighting.description || undefined,
+            sourceType: "user",
+          });
+        }
+
+        return sighting;
       }),
 
     /**

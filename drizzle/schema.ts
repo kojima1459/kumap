@@ -26,7 +26,39 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 /**
- * Bear sighting records table
+ * User notification preferences for bear sightings
+ * Users can subscribe to notifications for specific prefectures
+ */
+export const notificationPreferences = mysqlTable("notification_preferences", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  prefecture: varchar("prefecture", { length: 20 }).notNull(),
+  enabled: int("enabled").default(1).notNull(), // 1 = enabled, 0 = disabled
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type InsertNotificationPreference = typeof notificationPreferences.$inferInsert;
+
+/**
+ * Notification log to track sent notifications
+ */
+export const notificationLogs = mysqlTable("notification_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  sightingId: int("sighting_id").notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+  status: mysqlEnum("status", ["sent", "failed"]).default("sent").notNull(),
+});
+
+export type NotificationLog = typeof notificationLogs.$inferSelect;
+export type InsertNotificationLog = typeof notificationLogs.$inferInsert;
+
+// TODO: Add your tables here
+
+/**
+ * Bear sightings table
  * Stores both official (scraped) and user-submitted sightings
  */
 export const bearSightings = mysqlTable("bear_sightings", {
