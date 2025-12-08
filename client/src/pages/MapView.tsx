@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { MapView as GoogleMapView } from "@/components/Map";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, AlertTriangle, Plus, Settings, Calendar, Bell } from "lucide-react";
+import { Loader2, MapPin, AlertTriangle, Plus, Settings, Calendar, Bell, BarChart3 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -154,6 +154,12 @@ export default function MapView() {
               </Link>
               {user && (
                 <>
+                  <Link href="/stats">
+                    <Button variant="outline">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      統計
+                    </Button>
+                  </Link>
                   <Link href="/notifications">
                     <Button variant="outline">
                       <Bell className="w-4 h-4 mr-2" />

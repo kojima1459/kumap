@@ -8,6 +8,7 @@ import MapView from "./pages/MapView";
 import SubmitSighting from "./pages/SubmitSighting";
 import AdminScraper from "./pages/AdminScraper";
 import NotificationSettings from "./pages/NotificationSettings";
+import StatsMapView from "./pages/StatsMapView";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path={"/submit"} component={SubmitSighting} />
       <Route path={"/admin/scraper"} component={AdminScraper} />
       <Route path={"/notifications"} component={NotificationSettings} />
+      <Route path={"/stats"} component={StatsMapView} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
