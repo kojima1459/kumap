@@ -6,12 +6,14 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import MapView from "./pages/MapView";
 import SubmitSighting from "./pages/SubmitSighting";
+import AdminScraper from "./pages/AdminScraper";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={MapView} />
       <Route path={"/submit"} component={SubmitSighting} />
+      <Route path={"/admin/scraper"} component={AdminScraper} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -4,7 +4,9 @@
  */
 
 import axios from "axios";
-import { insertBearSighting } from "./db";
+import { insertBearSighting, getDb } from "./db";
+import { bearSightings } from "../drizzle/schema";
+import { and, eq } from "drizzle-orm";
 
 const YAHOO_BEAR_PAGE = "https://emg.yahoo.co.jp/notebook/contents/article/bearsummary251114.html";
 
@@ -125,6 +127,7 @@ export async function scrapeYahooBearPage(): Promise<ScrapedSighting[]> {
 /**
  * Process scraped sightings and save to database
  * Creates entries with prefecture-level coordinates
+ * Includes duplicate checking to avoid redundant entries
  */
 export async function processScraping() {
   console.log("Starting bear sighting scraping...");
@@ -132,13 +135,38 @@ export async function processScraping() {
   const sightings = await scrapeYahooBearPage();
   console.log(`Found ${sightings.length} prefecture-level sightings`);
 
+  const db = await getDb();
+  if (!db) {
+    console.error("Database not available");
+    return { total: sightings.length, saved: 0, skipped: 0 };
+  }
+
   let savedCount = 0;
+  let skippedCount = 0;
 
   for (const sighting of sightings) {
     const coords = PREFECTURE_COORDS[sighting.prefecture];
     if (!coords) continue;
 
     try {
+      // Check for duplicate: same prefecture + sourceUrl
+      const existing = await db
+        .select()
+        .from(bearSightings)
+        .where(
+          and(
+            eq(bearSightings.prefecture, sighting.prefecture),
+            eq(bearSightings.sourceUrl, sighting.sourceUrl)
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        console.log(`Skipping duplicate: ${sighting.prefecture} - ${sighting.sourceUrl}`);
+        skippedCount++;
+        continue;
+      }
+
       await insertBearSighting({
         sourceType: "official",
         prefecture: sighting.prefecture,
@@ -151,13 +179,19 @@ export async function processScraping() {
         status: "approved",
       });
       savedCount++;
+      console.log(`Saved new sighting: ${sighting.prefecture}`);
     } catch (error) {
       console.error(`Failed to save sighting for ${sighting.prefecture}:`, error);
     }
   }
 
-  console.log(`Scraping complete. Saved ${savedCount} sightings.`);
-  return { total: sightings.length, saved: savedCount };
+  const result = {
+    total: sightings.length,
+    saved: savedCount,
+    skipped: skippedCount,
+  };
+  console.log(`Scraping complete. Total: ${result.total}, Saved: ${result.saved}, Skipped: ${result.skipped}`);
+  return result;
 }
 
 /**
