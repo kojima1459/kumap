@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, index } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -91,7 +91,13 @@ export const bearSightings = mysqlTable("bear_sightings", {
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("approved").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  prefectureIdx: index("prefecture_idx").on(table.prefecture),
+  sightedAtIdx: index("sighted_at_idx").on(table.sightedAt),
+  sourceTypeIdx: index("source_type_idx").on(table.sourceType),
+  statusIdx: index("status_idx").on(table.status),
+  prefectureSightedAtIdx: index("prefecture_sighted_at_idx").on(table.prefecture, table.sightedAt),
+}));
 
 export type BearSighting = typeof bearSightings.$inferSelect;
 export type InsertBearSighting = typeof bearSightings.$inferInsert;

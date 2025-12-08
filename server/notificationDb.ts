@@ -7,6 +7,7 @@ import { getDb } from "./db";
 import {
   notificationPreferences,
   notificationLogs,
+  users,
   InsertNotificationPreference,
   InsertNotificationLog,
 } from "../drizzle/schema";
@@ -82,14 +83,21 @@ export async function deleteNotificationPreference(userId: number, prefecture: s
 
 /**
  * Get all users subscribed to a specific prefecture
+ * Uses JOIN to fetch user details in a single query (avoids N+1 problem)
  */
 export async function getUsersSubscribedToPrefecture(prefecture: string) {
   const db = await getDb();
   if (!db) return [];
 
   return await db
-    .select()
+    .select({
+      userId: notificationPreferences.userId,
+      prefecture: notificationPreferences.prefecture,
+      userName: users.name,
+      userEmail: users.email,
+    })
     .from(notificationPreferences)
+    .leftJoin(users, eq(notificationPreferences.userId, users.id))
     .where(
       and(
         eq(notificationPreferences.prefecture, prefecture),

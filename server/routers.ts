@@ -5,7 +5,9 @@ import { scraperRouter } from "./scraperRouter";
 import { notificationRouter } from "./notificationRouter";
 import { statsRouter } from "./statsRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { adminProcedure } from "./adminProcedure";
 import { z } from "zod";
+import { PREFECTURES, VALIDATION, BEAR_TYPES } from "@shared/constants";
 import {
   getBearSightings,
   insertBearSighting,
@@ -58,15 +60,27 @@ export const appRouter = router({
     submit: protectedProcedure
       .input(
         z.object({
-          prefecture: z.string(),
-          city: z.string().optional(),
-          location: z.string().optional(),
-          latitude: z.string(),
-          longitude: z.string(),
+          prefecture: z.enum(PREFECTURES as any),
+          city: z.string().max(VALIDATION.CITY_MAX_LENGTH).optional(),
+          location: z.string().max(VALIDATION.LOCATION_MAX_LENGTH).optional(),
+          latitude: z.string().refine(
+            (val) => {
+              const num = parseFloat(val);
+              return !isNaN(num) && num >= VALIDATION.LATITUDE_MIN && num <= VALIDATION.LATITUDE_MAX;
+            },
+            { message: "Invalid latitude" }
+          ),
+          longitude: z.string().refine(
+            (val) => {
+              const num = parseFloat(val);
+              return !isNaN(num) && num >= VALIDATION.LONGITUDE_MIN && num <= VALIDATION.LONGITUDE_MAX;
+            },
+            { message: "Invalid longitude" }
+          ),
           sightedAt: z.date(),
-          bearType: z.string().optional(),
-          description: z.string().optional(),
-          imageUrl: z.string().optional(),
+          bearType: z.enum(BEAR_TYPES as any).optional(),
+          description: z.string().max(VALIDATION.DESCRIPTION_MAX_LENGTH).optional(),
+          imageUrl: z.string().url().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -102,23 +116,21 @@ export const appRouter = router({
     /**
      * Get pending sightings for admin approval
      */
-    pending: protectedProcedure.query(async ({ ctx }) => {
-      // TODO: Add admin role check
+    pending: adminProcedure.query(async ({ ctx }) => {
       return getPendingSightings();
     }),
 
     /**
      * Approve or reject a sighting (admin only)
      */
-    updateStatus: protectedProcedure
+    updateStatus: adminProcedure
       .input(
         z.object({
           id: z.number(),
-          status: z.enum(["approved", "rejected"]),
+          status: z.enum(["approved", "rejected", "pending"]),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        // TODO: Add admin role check
         return updateSightingStatus(input.id, input.status);
       }),
   }),

@@ -183,7 +183,7 @@ export async function getPendingSightings() {
  */
 export async function updateSightingStatus(
   id: number,
-  status: "approved" | "rejected"
+  status: "approved" | "rejected" | "pending"
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
