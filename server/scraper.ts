@@ -1,9 +1,11 @@
 /**
- * Bear sighting scraper
- * Scrapes Yahoo! News bear sighting summary page and extracts prefecture links
+ * Bear sighting scraper - Hybrid approach
+ * 1. Scrapes Yahoo! News to get prefecture external links
+ * 2. Saves prefecture-level information with links to official sources
  */
 
 import axios from "axios";
+import * as cheerio from "cheerio";
 import { insertBearSighting, getDb } from "./db";
 import { bearSightings } from "../drizzle/schema";
 import { and, eq } from "drizzle-orm";
@@ -12,14 +14,13 @@ const YAHOO_BEAR_PAGE = "https://emg.yahoo.co.jp/notebook/contents/article/bears
 
 /**
  * Prefecture geocoding data (approximate center coordinates)
- * Used when exact location is not available from scraped data
  */
 const PREFECTURE_COORDS: Record<string, { lat: string; lng: string }> = {
   北海道: { lat: "43.064", lng: "141.347" },
   青森県: { lat: "40.824", lng: "140.740" },
   岩手県: { lat: "39.703", lng: "141.153" },
   宮城県: { lat: "38.269", lng: "140.872" },
-  秋田県: { lat: "39.719" , lng: "140.103" },
+  秋田県: { lat: "39.719", lng: "140.103" },
   山形県: { lat: "38.240", lng: "140.363" },
   福島県: { lat: "37.750", lng: "140.467" },
   茨城県: { lat: "36.341", lng: "140.447" },
@@ -53,100 +54,109 @@ const PREFECTURE_COORDS: Record<string, { lat: string; lng: string }> = {
   高知県: { lat: "33.560", lng: "133.531" },
 };
 
-interface ScrapedSighting {
+interface PrefectureLink {
   prefecture: string;
-  sourceUrl: string;
-  description: string;
+  summaryUrl?: string;
+  mapUrl?: string;
 }
 
 /**
- * Scrape Yahoo! News bear sighting page
- * Extracts prefecture-level information and links to official sources
+ * Scrape Yahoo! News bear page to extract prefecture external links
+ * This is the core of the hybrid approach - we get links to official sources
  */
-export async function scrapeYahooBearPage(): Promise<ScrapedSighting[]> {
+export async function scrapePrefectureLinks(): Promise<PrefectureLink[]> {
   try {
+    console.log("[Scraper] Fetching Yahoo! News bear page...");
     const response = await axios.get(YAHOO_BEAR_PAGE, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; BearMapBot/1.0)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
 
-    const html = response.data as string;
-    const sightings: ScrapedSighting[] = [];
+    const $ = cheerio.load(response.data);
+    const links: PrefectureLink[] = [];
 
-    // Parse HTML to extract prefecture information
-    // This is a simplified parser - in production, use a proper HTML parser like cheerio
-    const prefecturePattern = /<h2[^>]*>([^<]+県|北海道|東京都|京都府|大阪府)<\/h2>/g;
-    const linkPattern = /<a[^>]*href="([^"]+)"[^>]*>([^<]*出没[^<]*)<\/a>/g;
+    // Find all prefecture sections (h2 headings contain prefecture names)
+    $("h2").each((_, element) => {
+      const heading = $(element).text().trim();
+      
+      // Check if this is a prefecture heading
+      const prefectureMatch = heading.match(/^(北海道|.+[都道府県])$/);
+      if (!prefectureMatch) return;
+      
+      const prefecture = prefectureMatch[1];
+      if (!PREFECTURE_COORDS[prefecture]) return;
 
-    let match;
-    let currentPrefecture = "";
+      // Find the section after this h2 until the next h2
+      let currentElement = $(element).next();
+      let summaryUrl: string | undefined;
+      let mapUrl: string | undefined;
 
-    // Extract prefectures
-    const prefectures: string[] = [];
-    while ((match = prefecturePattern.exec(html)) !== null) {
-      prefectures.push(match[1]);
-    }
+      // Traverse siblings until we hit another h2 or h1
+      while (currentElement.length > 0 && !currentElement.is("h1, h2")) {
+        // Look for links in this element and its children
+        const allLinks = currentElement.find("a").addBack("a");
+        
+        allLinks.each((_, link) => {
+          const href = $(link).attr("href");
+          const text = $(link).text();
+          
+          if (!href) return;
 
-    // For each prefecture, extract links
-    for (const prefecture of prefectures) {
-      if (!PREFECTURE_COORDS[prefecture]) continue;
-
-      // Find links in the prefecture section
-      const sectionStart = html.indexOf(`<h2>${prefecture}</h2>`);
-      if (sectionStart === -1) continue;
-
-      const nextSectionStart = html.indexOf("<h2>", sectionStart + 1);
-      const sectionHtml = html.substring(
-        sectionStart,
-        nextSectionStart === -1 ? html.length : nextSectionStart
-      );
-
-      // Extract links from this section
-      let linkMatch;
-      linkPattern.lastIndex = 0;
-      while ((linkMatch = linkPattern.exec(sectionHtml)) !== null) {
-        const url = linkMatch[1];
-        const text = linkMatch[2];
-
-        sightings.push({
-          prefecture,
-          sourceUrl: url,
-          description: `${prefecture}の公式情報: ${text}`,
+          // Identify link type based on text content
+          if (text.includes("マップ") || text.includes("出没情報") || text.includes("目撃")) {
+            if (!mapUrl) mapUrl = href;
+          } else if (text.includes(prefecture) && !summaryUrl) {
+            summaryUrl = href;
+          }
         });
+        
+        currentElement = currentElement.next();
       }
-    }
 
-    return sightings;
+      if (summaryUrl || mapUrl) {
+        links.push({
+          prefecture,
+          summaryUrl,
+          mapUrl,
+        });
+        console.log(`[Scraper] ${prefecture}: summary=${summaryUrl ? 'YES' : 'NO'}, map=${mapUrl ? 'YES' : 'NO'}`);
+      }
+    });
+
+    console.log(`[Scraper] Found ${links.length} prefecture links`);
+    return links;
   } catch (error) {
-    console.error("Failed to scrape Yahoo bear page:", error);
+    console.error("[Scraper] Failed to scrape prefecture links:", error);
     return [];
   }
 }
 
 /**
- * Process scraped sightings and save to database
- * Creates entries with prefecture-level coordinates
- * Includes duplicate checking to avoid redundant entries
+ * Process scraped prefecture links and save to database
+ * Creates prefecture-level entries with external links
  */
 export async function processScraping() {
-  console.log("Starting bear sighting scraping...");
+  console.log("[Scraper] Starting prefecture link scraping...");
 
-  const sightings = await scrapeYahooBearPage();
-  console.log(`Found ${sightings.length} prefecture-level sightings`);
+  const prefectureLinks = await scrapePrefectureLinks();
+  console.log(`[Scraper] Found ${prefectureLinks.length} prefectures with external links`);
 
   const db = await getDb();
   if (!db) {
-    console.error("Database not available");
-    return { total: sightings.length, saved: 0, skipped: 0 };
+    console.error("[Scraper] Database not available");
+    return { total: prefectureLinks.length, saved: 0, skipped: 0 };
   }
 
   let savedCount = 0;
   let skippedCount = 0;
 
-  for (const sighting of sightings) {
-    const coords = PREFECTURE_COORDS[sighting.prefecture];
+  for (const link of prefectureLinks) {
+    const coords = PREFECTURE_COORDS[link.prefecture];
     if (!coords) continue;
+
+    const sourceUrl = link.mapUrl || link.summaryUrl;
+    if (!sourceUrl) continue;
 
     try {
       // Check for duplicate: same prefecture + sourceUrl
@@ -155,42 +165,50 @@ export async function processScraping() {
         .from(bearSightings)
         .where(
           and(
-            eq(bearSightings.prefecture, sighting.prefecture),
-            eq(bearSightings.sourceUrl, sighting.sourceUrl)
+            eq(bearSightings.prefecture, link.prefecture),
+            eq(bearSightings.sourceUrl, sourceUrl)
           )
         )
         .limit(1);
 
       if (existing.length > 0) {
-        console.log(`Skipping duplicate: ${sighting.prefecture} - ${sighting.sourceUrl}`);
+        console.log(`[Scraper] Skipping duplicate: ${link.prefecture}`);
         skippedCount++;
         continue;
       }
 
+      // Create description with link information
+      let description = `${link.prefecture}の公式出没情報`;
+      if (link.mapUrl) {
+        description += "（マップあり）";
+      }
+
       await insertBearSighting({
         sourceType: "official",
-        prefecture: sighting.prefecture,
-        location: sighting.prefecture,
+        prefecture: link.prefecture,
+        location: link.prefecture,
         latitude: coords.lat,
         longitude: coords.lng,
-        sightedAt: new Date(), // Use current date as we don't have exact sighting date
-        description: sighting.description,
-        sourceUrl: sighting.sourceUrl,
+        sightedAt: new Date(),
+        description,
+        sourceUrl,
         status: "approved",
       });
+      
       savedCount++;
-      console.log(`Saved new sighting: ${sighting.prefecture}`);
+      console.log(`[Scraper] Saved: ${link.prefecture} - ${sourceUrl}`);
     } catch (error) {
-      console.error(`Failed to save sighting for ${sighting.prefecture}:`, error);
+      console.error(`[Scraper] Failed to save ${link.prefecture}:`, error);
     }
   }
 
   const result = {
-    total: sightings.length,
+    total: prefectureLinks.length,
     saved: savedCount,
     skipped: skippedCount,
   };
-  console.log(`Scraping complete. Total: ${result.total}, Saved: ${result.saved}, Skipped: ${result.skipped}`);
+  
+  console.log(`[Scraper] Complete. Total: ${result.total}, Saved: ${result.saved}, Skipped: ${result.skipped}`);
   return result;
 }
 
