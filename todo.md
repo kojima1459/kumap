@@ -126,3 +126,8 @@
 - [ ] フロントエンドエラー表示の改善
 - [ ] E2Eテストの実装
 - [ ] GitHub Actions CI/CD設定
+
+- [x] スクレイピングロジックへのリトライ適用
+- [x] MapFilterコンポーネントの分離
+- [x] BearMarkerコンポーネントの作成
+- [x] MapView.tsxのリファクタリング

@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
-import { PREFECTURE_MAP_URLS } from "../../../server/prefectureUrlMapping";
 import { MapView as GoogleMapView } from "@/components/Map";
+import { PREFECTURE_MAP_URLS } from "../../../server/prefectureUrlMapping";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, AlertTriangle, Plus, Settings, Calendar, Bell, BarChart3 } from "lucide-react";
+import { Loader2, AlertTriangle, Plus, Settings, Bell, BarChart3, MapPin, Calendar } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Footer from "@/components/Footer";
+import { MapFilter, type DateRange } from "@/components/MapFilter";
+import { createBearMarker, type BearSighting } from "@/components/BearMarker";
 
 const PREFECTURES = [
   "全国",
@@ -20,8 +22,6 @@ const PREFECTURES = [
   "鳥取県", "島根県", "岡山県", "広島県", "山口県",
   "徳島県", "高知県"
 ];
-
-type DateRange = "all" | "week" | "month" | "3months";
 
 export default function MapView() {
   const { user } = useAuth();
@@ -59,74 +59,20 @@ export default function MapView() {
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
 
-    // Add new markers
+    // Add new markers using the BearMarker component
     sightings.forEach((sighting) => {
-      const lat = parseFloat(sighting.latitude);
-      const lng = parseFloat(sighting.longitude);
-
-      if (isNaN(lat) || isNaN(lng)) return;
-
-      const marker = new google.maps.Marker({
-        position: { lat, lng },
-        map,
-        title: `${sighting.prefecture} - ${sighting.location || "詳細不明"}`,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: sighting.sourceType === "official" ? "#ef4444" : "#f97316",
-          fillOpacity: 0.8,
-          strokeColor: "#ffffff",
-          strokeWeight: 2,
-        },
-      });
-
-      marker.addListener("click", () => {
-        const sightedDate = new Date(sighting.sightedAt);
-        const createdDate = new Date(sighting.createdAt);
-        const now = new Date();
-        const daysAgo = Math.floor((now.getTime() - sightedDate.getTime()) / (1000 * 60 * 60 * 24));
-        const timeAgoText = daysAgo === 0 ? "今日" : daysAgo === 1 ? "昨日" : `${daysAgo}日前`;
-
-        const content = `
-          <div style="padding: 8px; max-width: 300px;">
-            <h3 style="font-weight: bold; margin-bottom: 8px; color: ${
-              sighting.sourceType === "official" ? "#ef4444" : "#f97316"
-            };">
-              ${sighting.sourceType === "official" ? "🏛️ 公式情報" : "👤 ユーザー投稿"}
-            </h3>
-            <p style="margin-bottom: 4px;"><strong>場所:</strong> ${sighting.prefecture} ${sighting.city || ""}</p>
-            <p style="margin-bottom: 4px;"><strong>詳細:</strong> ${sighting.location || "詳細不明"}</p>
-            <p style="margin-bottom: 4px;"><strong>目撃日時:</strong> ${sightedDate.toLocaleString("ja-JP")} (${timeAgoText})</p>
-            ${sighting.sourceType === "official" ? `<p style="margin-bottom: 4px; font-size: 12px; color: #666;"><strong>情報取得日:</strong> ${createdDate.toLocaleString("ja-JP")}</p>` : ""}
-            ${sighting.bearType ? `<p style="margin-bottom: 4px;"><strong>クマの種類:</strong> ${sighting.bearType}</p>` : ""}
-            ${sighting.description ? `<p style="margin-bottom: 4px;"><strong>説明:</strong> ${sighting.description}</p>` : ""}
-            ${sighting.sourceUrl ? `<p style="margin-top: 8px;"><a href="${sighting.sourceUrl}" target="_blank" style="color: #3b82f6;">情報源を見る →</a></p>` : ""}
-            ${PREFECTURE_MAP_URLS[sighting.prefecture] ? `
-              <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
-                <p style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">詳細はこちらでも確認できます：</p>
-                <a href="${PREFECTURE_MAP_URLS[sighting.prefecture]}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; font-size: 13px; text-decoration: underline;">
-                  ${sighting.prefecture}の公式クマ出没情報マップ →
-                </a>
-              </div>
-            ` : ""}
-          </div>
-        `;
-        infoWindow.setContent(content);
-        infoWindow.open(map, marker);
-      });
-
-      markersRef.current.push(marker);
+      const marker = createBearMarker(sighting as BearSighting, map, infoWindow);
+      if (marker) {
+        markersRef.current.push(marker);
+      }
     });
 
     // Fit bounds to show all markers
-    if (sightings.length > 0) {
+    if (markersRef.current.length > 0) {
       const bounds = new google.maps.LatLngBounds();
-      sightings.forEach((sighting) => {
-        const lat = parseFloat(sighting.latitude);
-        const lng = parseFloat(sighting.longitude);
-        if (!isNaN(lat) && !isNaN(lng)) {
-          bounds.extend({ lat, lng });
-        }
+      markersRef.current.forEach(marker => {
+        const position = marker.getPosition();
+        if (position) bounds.extend(position);
       });
       map.fitBounds(bounds);
     }

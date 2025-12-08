@@ -10,6 +10,7 @@ import { insertBearSighting, getDb } from "./db";
 import { bearSightings } from "../drizzle/schema";
 import { and, eq } from "drizzle-orm";
 import { PREFECTURE_MAP_URLS } from "./prefectureUrlMapping";
+import { withRetry, isRetryableError } from "./utils/retryHelper";
 
 const YAHOO_BEAR_PAGE = "https://emg.yahoo.co.jp/notebook/contents/article/bearsummary251114.html";
 
@@ -68,11 +69,25 @@ interface PrefectureLink {
 export async function scrapePrefectureLinks(): Promise<PrefectureLink[]> {
   try {
     console.log("[Scraper] Fetching Yahoo! News bear page...");
-    const response = await axios.get(YAHOO_BEAR_PAGE, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    
+    // Use retry helper for robust HTTP requests
+    const response = await withRetry(
+      async () => {
+        return await axios.get(YAHOO_BEAR_PAGE, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          },
+          timeout: 10000, // 10 second timeout
+        });
       },
-    });
+      {
+        maxRetries: 3,
+        initialDelayMs: 1000,
+        onRetry: (error, attempt) => {
+          console.warn(`[Scraper] Retry attempt ${attempt} after error: ${error.message}`);
+        },
+      }
+    );
 
     const $ = cheerio.load(response.data);
     const links: PrefectureLink[] = [];
