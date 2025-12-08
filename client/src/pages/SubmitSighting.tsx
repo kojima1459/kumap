@@ -235,6 +235,9 @@ export default function SubmitSighting() {
                       setFormData((prev) => ({ ...prev, sightedAt: e.target.value }))
                     }
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    クマを目撃した日時を入力してください
+                  </p>
                 </div>
 
                 <div>

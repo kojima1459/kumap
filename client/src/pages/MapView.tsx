@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { MapView as GoogleMapView } from "@/components/Map";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, AlertTriangle, Plus, Settings } from "lucide-react";
+import { Loader2, MapPin, AlertTriangle, Plus, Settings, Calendar } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,17 +19,29 @@ const PREFECTURES = [
   "徳島県", "高知県"
 ];
 
+type DateRange = "all" | "week" | "month" | "3months";
+
 export default function MapView() {
   const { user } = useAuth();
   const [selectedPrefecture, setSelectedPrefecture] = useState<string>("全国");
+  const [dateRange, setDateRange] = useState<DateRange>("all");
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
 
-  // Fetch bear sightings with optional prefecture filter
-  const { data: sightings, isLoading } = trpc.bearSightings.list.useQuery(
-    selectedPrefecture === "全国" ? undefined : { prefecture: selectedPrefecture }
-  );
+  // Calculate date range
+  const getStartDate = (range: DateRange): Date | undefined => {
+    if (range === "all") return undefined;
+    const now = new Date();
+    const daysAgo = range === "week" ? 7 : range === "month" ? 30 : 90;
+    return new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  };
+
+  // Fetch bear sightings with filters
+  const { data: sightings, isLoading } = trpc.bearSightings.list.useQuery({
+    prefecture: selectedPrefecture === "全国" ? undefined : selectedPrefecture,
+    startDate: getStartDate(dateRange),
+  });
 
   // Initialize map
   const handleMapReady = (mapInstance: google.maps.Map) => {
@@ -67,6 +79,12 @@ export default function MapView() {
       });
 
       marker.addListener("click", () => {
+        const sightedDate = new Date(sighting.sightedAt);
+        const createdDate = new Date(sighting.createdAt);
+        const now = new Date();
+        const daysAgo = Math.floor((now.getTime() - sightedDate.getTime()) / (1000 * 60 * 60 * 24));
+        const timeAgoText = daysAgo === 0 ? "今日" : daysAgo === 1 ? "昨日" : `${daysAgo}日前`;
+
         const content = `
           <div style="padding: 8px; max-width: 300px;">
             <h3 style="font-weight: bold; margin-bottom: 8px; color: ${
@@ -76,7 +94,8 @@ export default function MapView() {
             </h3>
             <p style="margin-bottom: 4px;"><strong>場所:</strong> ${sighting.prefecture} ${sighting.city || ""}</p>
             <p style="margin-bottom: 4px;"><strong>詳細:</strong> ${sighting.location || "詳細不明"}</p>
-            <p style="margin-bottom: 4px;"><strong>目撃日時:</strong> ${new Date(sighting.sightedAt).toLocaleString("ja-JP")}</p>
+            <p style="margin-bottom: 4px;"><strong>目撃日時:</strong> ${sightedDate.toLocaleString("ja-JP")} (${timeAgoText})</p>
+            ${sighting.sourceType === "official" ? `<p style="margin-bottom: 4px; font-size: 12px; color: #666;"><strong>情報取得日:</strong> ${createdDate.toLocaleString("ja-JP")}</p>` : ""}
             ${sighting.bearType ? `<p style="margin-bottom: 4px;"><strong>クマの種類:</strong> ${sighting.bearType}</p>` : ""}
             ${sighting.description ? `<p style="margin-bottom: 4px;"><strong>説明:</strong> ${sighting.description}</p>` : ""}
             ${sighting.sourceUrl ? `<p style="margin-top: 8px;"><a href="${sighting.sourceUrl}" target="_blank" style="color: #3b82f6;">情報源を見る →</a></p>` : ""}
@@ -149,10 +168,10 @@ export default function MapView() {
       {/* Controls */}
       <div className="container mx-auto px-4 py-4">
         <Card className="p-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <MapPin className="w-5 h-5 text-orange-600" />
-              <span className="font-medium text-gray-700">地域を選択:</span>
+              <span className="font-medium text-gray-700">地域:</span>
             </div>
             <Select value={selectedPrefecture} onValueChange={setSelectedPrefecture}>
               <SelectTrigger className="w-48">
@@ -166,6 +185,23 @@ export default function MapView() {
                 ))}
               </SelectContent>
             </Select>
+
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-orange-600" />
+              <span className="font-medium text-gray-700">期間:</span>
+            </div>
+            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全期間</SelectItem>
+                <SelectItem value="week">過去1週間</SelectItem>
+                <SelectItem value="month">過去1ヶ月</SelectItem>
+                <SelectItem value="3months">過去3ヶ月</SelectItem>
+              </SelectContent>
+            </Select>
+
             {isLoading && (
               <div className="flex items-center gap-2 text-gray-600">
                 <Loader2 className="w-4 h-4 animate-spin" />
