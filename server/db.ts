@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, bearSightings, InsertBearSighting } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -98,6 +98,7 @@ export async function getUserByOpenId(openId: string) {
  */
 export async function getBearSightings(filters?: {
   prefecture?: string;
+  prefectures?: string[];
   startDate?: Date;
   endDate?: Date;
   sourceType?: "official" | "user";
@@ -107,7 +108,10 @@ export async function getBearSightings(filters?: {
 
   const conditions = [eq(bearSightings.status, "approved")];
 
-  if (filters?.prefecture) {
+  // Handle single prefecture or multiple prefectures
+  if (filters?.prefectures && filters.prefectures.length > 0) {
+    conditions.push(inArray(bearSightings.prefecture, filters.prefectures));
+  } else if (filters?.prefecture) {
     conditions.push(eq(bearSightings.prefecture, filters.prefecture));
   }
   if (filters?.startDate) {

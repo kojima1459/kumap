@@ -3,6 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { scraperRouter } from "./scraperRouter";
 import { notificationRouter } from "./notificationRouter";
+import { emailSubscriptionRouter } from "./emailSubscriptionRouter";
 import { statsRouter } from "./statsRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { adminProcedure } from "./adminProcedure";
@@ -34,6 +35,7 @@ export const appRouter = router({
   }),
 
   notifications: notificationRouter,
+  emailSubscription: emailSubscriptionRouter,
 
   bearSightings: router({
     /**
@@ -44,6 +46,7 @@ export const appRouter = router({
         z
           .object({
             prefecture: z.string().optional(),
+            prefectures: z.array(z.string()).optional(),
             startDate: z.date().optional(),
             endDate: z.date().optional(),
             sourceType: z.enum(["official", "user"]).optional(),

@@ -101,3 +101,34 @@ export const bearSightings = mysqlTable("bear_sightings", {
 
 export type BearSighting = typeof bearSightings.$inferSelect;
 export type InsertBearSighting = typeof bearSightings.$inferInsert;
+
+/**
+ * Email subscriptions for bear sighting notifications
+ * Allows anonymous users to subscribe to notifications without logging in
+ */
+export const emailSubscriptions = mysqlTable("email_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Email address for notifications */
+  email: varchar("email", { length: 320 }).notNull(),
+  /** Prefecture to receive notifications for */
+  prefecture: varchar("prefecture", { length: 20 }).notNull(),
+  /** Confirmation token for double opt-in */
+  confirmToken: varchar("confirm_token", { length: 64 }).notNull(),
+  /** Unsubscribe token for one-click unsubscribe */
+  unsubscribeToken: varchar("unsubscribe_token", { length: 64 }).notNull(),
+  /** Whether the email has been confirmed (double opt-in) */
+  confirmed: int("confirmed").default(0).notNull(), // 0 = unconfirmed, 1 = confirmed
+  /** Whether the subscription is active */
+  active: int("active").default(1).notNull(), // 1 = active, 0 = unsubscribed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  confirmedAt: timestamp("confirmed_at"),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  emailIdx: index("email_idx").on(table.email),
+  prefectureIdx: index("email_prefecture_idx").on(table.prefecture),
+  confirmTokenIdx: index("confirm_token_idx").on(table.confirmToken),
+  unsubscribeTokenIdx: index("unsubscribe_token_idx").on(table.unsubscribeToken),
+}));
+
+export type EmailSubscription = typeof emailSubscriptions.$inferSelect;
+export type InsertEmailSubscription = typeof emailSubscriptions.$inferInsert;

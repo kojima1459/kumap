@@ -55,6 +55,24 @@ export default function AdminScraper() {
     );
   }
 
+  // Check if user is the project owner
+  if (user.openId !== import.meta.env.VITE_OWNER_OPEN_ID) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
+        <Card className="p-8 max-w-md text-center">
+          <XCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-4">アクセスが拒否されました</h2>
+          <p className="text-gray-600 mb-6">
+            このページはプロジェクトオーナー専用です。経済的負担とセキュリティ保護のため、一般ユーザーはアクセスできません。
+          </p>
+          <Button onClick={() => navigate("/")} className="w-full">
+            マップに戻る
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 py-8">
       <div className="container mx-auto px-4">

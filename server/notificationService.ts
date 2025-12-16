@@ -1,12 +1,12 @@
 /**
  * Notification service for sending alerts to users
- * Uses Manus built-in notification API
+ * Uses Gmail MCP for email delivery and Manus notification API for owner alerts
  */
 
 import { notifyOwner } from "./_core/notification";
 import { getUsersSubscribedToPrefecture, logNotification } from "./notificationDb";
-import { getUserByOpenId } from "./db";
-import { ENV } from "./_core/env";
+import { getActiveSubscriptionsForPrefecture } from "./emailSubscriptionDb";
+import { sendSightingNotificationEmail } from "./emailService";
 
 interface BearSighting {
   id: number;
@@ -23,53 +23,91 @@ interface BearSighting {
  */
 export async function notifyUsersOfNewSighting(sighting: BearSighting) {
   try {
-    // Get all users subscribed to this prefecture
-    const subscriptions = await getUsersSubscribedToPrefecture(sighting.prefecture);
-
-    if (subscriptions.length === 0) {
-      console.log(`[Notification] No subscribers for ${sighting.prefecture}`);
-      return { sent: 0, failed: 0 };
-    }
-
-    console.log(
-      `[Notification] Sending to ${subscriptions.length} subscribers for ${sighting.prefecture}`
-    );
+    // Get base URL for email links
+    const baseUrl = process.env.VITE_APP_URL || "https://kumap.manus.space";
 
     let sentCount = 0;
     let failedCount = 0;
 
-    for (const subscription of subscriptions) {
-      try {
-        // Format notification message
-        const title = `🐻 ${sighting.prefecture}でクマ出没情報`;
-        const location = sighting.city ? `${sighting.prefecture} ${sighting.city}` : sighting.prefecture;
-        const timeStr = formatDate(sighting.sightedAt);
-        const sourceLabel = sighting.sourceType === "official" ? "公式情報" : "ユーザー投稿";
-        
-        const content = `
+    // 1. Send email notifications to email subscribers (no login required)
+    const emailSubscriptions = await getActiveSubscriptionsForPrefecture(sighting.prefecture);
+    
+    if (emailSubscriptions.length > 0) {
+      console.log(
+        `[Notification] Sending emails to ${emailSubscriptions.length} email subscribers for ${sighting.prefecture}`
+      );
+
+      for (const subscription of emailSubscriptions) {
+        try {
+          const success = await sendSightingNotificationEmail(
+            subscription.email,
+            subscription.unsubscribeToken,
+            sighting,
+            baseUrl
+          );
+
+          if (success) {
+            sentCount++;
+            console.log(`[Notification] Email sent to ${subscription.email}`);
+          } else {
+            failedCount++;
+            console.error(`[Notification] Failed to send email to ${subscription.email}`);
+          }
+        } catch (error) {
+          console.error(`[Notification] Error sending email to ${subscription.email}:`, error);
+          failedCount++;
+        }
+      }
+    }
+
+    // 2. Send app notifications to logged-in users (existing functionality)
+    const appSubscriptions = await getUsersSubscribedToPrefecture(sighting.prefecture);
+
+    if (appSubscriptions.length > 0) {
+      console.log(
+        `[Notification] Sending app notifications to ${appSubscriptions.length} app subscribers for ${sighting.prefecture}`
+      );
+
+      for (const subscription of appSubscriptions) {
+        try {
+          // Format notification message
+          const title = `🐻 ${sighting.prefecture}でクマ出没情報`;
+          const location = sighting.city ? `${sighting.prefecture} ${sighting.city}` : sighting.prefecture;
+          const timeStr = formatDate(sighting.sightedAt);
+          const sourceLabel = sighting.sourceType === "official" ? "公式情報" : "ユーザー投稿";
+          
+          const content = `
 場所: ${location}
 日時: ${timeStr}
 情報源: ${sourceLabel}
 ${sighting.description ? `\n詳細: ${sighting.description}` : ""}
 
-クマ出没情報マップで詳細を確認してください。
-        `.trim();
+クマップで詳細を確認してください。
+          `.trim();
 
-        // Send notification (currently using owner notification as placeholder)
-        // In production, this should send email to the user
-        const success = await notifyOwner({
-          title,
-          content,
-        });
-
-        if (success) {
-          sentCount++;
-          await logNotification({
-            userId: subscription.userId,
-            sightingId: sighting.id,
-            status: "sent",
+          // Send notification to owner (placeholder for app notification)
+          const success = await notifyOwner({
+            title,
+            content,
           });
-        } else {
+
+          if (success) {
+            sentCount++;
+            await logNotification({
+              userId: subscription.userId,
+              sightingId: sighting.id,
+              status: "sent",
+            });
+          } else {
+            failedCount++;
+            await logNotification({
+              userId: subscription.userId,
+              sightingId: sighting.id,
+              status: "failed",
+            });
+          }
+        } catch (error) {
+          console.error(`[Notification] Failed to send to user ${subscription.userId}:`, error);
           failedCount++;
           await logNotification({
             userId: subscription.userId,
@@ -77,15 +115,11 @@ ${sighting.description ? `\n詳細: ${sighting.description}` : ""}
             status: "failed",
           });
         }
-      } catch (error) {
-        console.error(`[Notification] Failed to send to user ${subscription.userId}:`, error);
-        failedCount++;
-        await logNotification({
-          userId: subscription.userId,
-          sightingId: sighting.id,
-          status: "failed",
-        });
       }
+    }
+
+    if (emailSubscriptions.length === 0 && appSubscriptions.length === 0) {
+      console.log(`[Notification] No subscribers for ${sighting.prefecture}`);
     }
 
     console.log(`[Notification] Complete. Sent: ${sentCount}, Failed: ${failedCount}`);

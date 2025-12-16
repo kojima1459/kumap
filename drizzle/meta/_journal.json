@@ -29,6 +29,13 @@
       "when": 1765179635462,
       "tag": "0003_omniscient_la_nuit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1765870598274,
+      "tag": "0004_clumsy_raider",
+      "breakpoints": true
     }
   ]
 }

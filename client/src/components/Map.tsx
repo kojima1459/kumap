@@ -129,7 +129,7 @@ function loadMapScript(): Promise<void> {
     }
 
     const script = document.createElement("script");
-    script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry`;
+    script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry,visualization`;
     script.async = true;
     script.crossOrigin = "anonymous";
     script.onload = () => {
@@ -177,6 +177,16 @@ export function MapView({
       zoomControl: true,
       streetViewControl: true,
       mapId: "DEMO_MAP_ID",
+      restriction: {
+        latLngBounds: {
+          north: 46.0,
+          south: 24.0,
+          west: 122.0,
+          east: 154.0,
+        },
+        strictBounds: false,
+      },
+      minZoom: 4,
     });
     if (onMapReady) {
       onMapReady(map.current);

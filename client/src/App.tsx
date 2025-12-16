@@ -9,6 +9,12 @@ import SubmitSighting from "./pages/SubmitSighting";
 import AdminScraper from "./pages/AdminScraper";
 import NotificationSettings from "./pages/NotificationSettings";
 import StatsMapView from "./pages/StatsMapView";
+import About from "./pages/About";
+import EmailConfirm from "./pages/EmailConfirm";
+import EmailUnsubscribe from "./pages/EmailUnsubscribe";
+import EmergencyGuide from "./pages/EmergencyGuide";
+import EmergencyContacts from "./pages/EmergencyContacts";
+import BearSafetyPopup from "./components/BearSafetyPopup";
 
 function Router() {
   return (
@@ -18,6 +24,11 @@ function Router() {
       <Route path={"/admin/scraper"} component={AdminScraper} />
       <Route path={"/notifications"} component={NotificationSettings} />
       <Route path={"/stats"} component={StatsMapView} />
+      <Route path={"/about"} component={About} />
+      <Route path={"/email/confirm"} component={EmailConfirm} />
+      <Route path={"/email/unsubscribe"} component={EmailUnsubscribe} />
+      <Route path={"/emergency-guide"} component={EmergencyGuide} />
+      <Route path={"/contacts"} component={EmergencyContacts} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -27,9 +38,10 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
           <Toaster />
+          <BearSafetyPopup />
           <Router />
         </TooltipProvider>
       </ThemeProvider>

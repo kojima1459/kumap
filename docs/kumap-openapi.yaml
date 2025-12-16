@@ -1,0 +1,1203 @@
+openapi: 3.0.3
+info:
+  title: くまっぷ Tenant API
+  version: 1.0.0
+  description: |-
+    テナント API を使用すると、外部アプリケーションから、データの取得や管理をできるようになります。
+    各テナントは、アクセスレベルを制御するために、異なるスコープを持つ複数の API キーを作成できます。
+
+    ## 利用方法
+    テナント管理者は、テナント設定ページからAPIキーを発行できます。
+    発行したAPIキーを使用して、プログラムから情報の取得・投稿・削除が可能です。
+
+    ## Authentication
+    すべての API リクエストには、Authorization ヘッダーの API キーを使用した認証が必要です。
+    ```
+    Authorization: Bearer kumap_tk__YOUR_API_KEY_HERE
+    ```
+
+    ## エンドポイント
+
+    | エンドポイント | メソッド | 説明 | 必要なスコープ |
+    |---|---|---|---|
+    | `/api-points-list` | POST | ポイント一覧の取得 | `points:read` |
+    | `/api-points-create` | POST | ポイントの作成 | `points:write` |
+    | `/api-points-delete` | POST | ポイントの削除 | `points:delete` |
+
+    ## セキュリティ
+    - APIキーはサーバーサイドアプリケーションでのみ使用してください
+    - ブラウザからの直接アクセスはCORS制限によりブロックされます
+  contact:
+    name: くまっぷ Development Team
+servers:
+  - url: 'https://xgzsccaaaxadvzzsztde.supabase.co/functions/v1'
+    description: サーバー
+  - url: 'http://127.0.0.1:64321/functions/v1'
+    description: Local development server
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: kumap_tk__*
+      description: API key with prefix 'kumap_tk__'
+  schemas:
+    PointKind:
+      type: string
+      enum: &ref_0
+        - witness
+        - trace
+        - injury
+        - damage
+      description: 'ポイント種別: witness (目撃), trace (痕跡), injury (人身被害), damage (被害)'
+      example: witness
+    Status:
+      type: string
+      enum: &ref_1
+        - active
+        - inactive
+        - draft
+      description: 'ステータス: active (公開中), inactive (非公開), draft (下書き)'
+      example: active
+    WitnessAdditionalData:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: 頭数
+          example: 2
+        state:
+          type: string
+          enum:
+            - adult
+            - cub
+            - with_cubs
+          description: '状態: adult (成獣), cub (子), with_cubs (子連れ)'
+          example: adult
+        gender:
+          type: string
+          enum:
+            - male
+            - female
+          description: '雌雄: male (オス), female (メス)'
+          example: male
+      description: 目撃情報の追加データ
+    TraceAdditionalData:
+      type: object
+      properties:
+        trace_kind:
+          type: string
+          enum:
+            - footprint
+            - claw_mark
+            - bark_stripping
+            - feces
+            - feeding_site
+            - bear_nest
+            - feeding_remains
+            - other
+          description: >-
+            痕跡種別: footprint (足跡), claw_mark (爪痕), bark_stripping (クマ剥ぎ), feces
+            (糞), feeding_site (クマ棚), bear_nest (土饅頭), feeding_remains (食べた痕),
+            other (その他)
+          example: footprint
+      required:
+        - trace_kind
+      description: 痕跡情報の追加データ (trace_kindは必須)
+    InjuryAdditionalData:
+      type: object
+      properties:
+        count_injured:
+          type: integer
+          description: 負傷者人数
+          example: 1
+        count_died:
+          type: integer
+          description: 死者人数
+          example: 0
+      description: 人身被害情報の追加データ
+    DamageAdditionalData:
+      type: object
+      properties: {}
+      description: 物損被害情報の追加データ (現在フィールド定義なし)
+    Position:
+      type: object
+      properties:
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+          description: 緯度
+          example: 35.6812
+        lng:
+          type: number
+          minimum: -180
+          maximum: 180
+          description: 経度
+          example: 139.7671
+      required:
+        - lat
+        - lng
+      description: 位置情報
+    Author:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 情報提供者名
+          example: 山田太郎
+        email:
+          type: string
+          format: email
+          description: 情報提供者email
+          example: yamada@example.com
+        phone:
+          type: string
+          description: 情報提供者電話番号
+          example: 090-1234-5678
+      description: 情報提供者
+    Address:
+      type: object
+      properties:
+        prefecture:
+          type: string
+          description: 都道府県
+          example: 群馬県
+        city:
+          type: string
+          description: 市区町村
+          example: 前橋市
+        address:
+          type: string
+          description: 住所
+          example: 大手町1-1-1
+        postal_code:
+          type: string
+          pattern: '^(\d{7}|\d{3}-\d{4})$'
+          description: 郵便番号（7桁の数字または3桁-4桁形式）
+          example: '3710026'
+      description: 住所情報
+    ImageInput:
+      type: object
+      properties:
+        data:
+          type: string
+          description: Base64エンコードされた画像データ
+          example: 'data:image/png;base64,iVBORw0KGgo...'
+        content_type:
+          type: string
+          enum: &ref_2
+            - image/png
+            - image/jpeg
+            - image/webp
+          description: ContentType
+          example: image/png
+        filename:
+          type: string
+          description: ファイル名
+          example: bear-photo.png
+      required:
+        - data
+        - content_type
+        - filename
+      description: 画像データ
+    ListRequest:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+          description: リミット
+          example: 10
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+          description: オフセット
+          example: 0
+        event_time_after:
+          type: string
+          nullable: true
+          format: date-time
+          description: 発生時刻(最小値)フィルター (ISO 8601 format)
+          example: '2025-01-01T00:00:00+09:00'
+        event_time_before:
+          type: string
+          nullable: true
+          format: date-time
+          description: 発生時刻(最大値)フィルター (ISO 8601 format)
+          example: '2025-12-31T23:59:59+09:00'
+        prefecture:
+          type: string
+          nullable: true
+          description: 都道府県フィルター
+          example: 群馬県
+        city:
+          type: string
+          nullable: true
+          description: 市区町村フィルター
+          example: 前橋市
+        point_kind_ids:
+          type: array
+          nullable: true
+          items:
+            type: string
+            enum: *ref_0
+            description: 'ポイント種別: witness (目撃), trace (痕跡), injury (人身被害), damage (被害)'
+            example: witness
+          description: ポイント種別フィルター
+          example:
+            - witness
+            - trace
+        tenant_id:
+          type: string
+          nullable: true
+          format: uuid
+          description: テナントIDフィルター
+          example: 550e8400-e29b-41d4-a716-446655440000
+        status:
+          type: string
+          nullable: true
+          enum: *ref_1
+          description: ステータスフィルター
+          example: active
+      description: ポイント一覧
+    CreateWitnessRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: 内容
+          example: 熊が柿を食べてた
+        event_time:
+          type: string
+          format: date-time
+          description: 発生時刻(ISO 8601)
+          example: '2025-01-09T10:00:00+09:00'
+        position:
+          type: object
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+              description: 緯度
+              example: 35.6812
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+              description: 経度
+              example: 139.7671
+          required:
+            - lat
+            - lng
+          description: 位置情報
+        status:
+          type: string
+          enum: *ref_1
+          default: active
+          description: ステータス
+          example: active
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+              description: 情報提供者名
+              example: 山田太郎
+            email:
+              type: string
+              format: email
+              description: 情報提供者email
+              example: yamada@example.com
+            phone:
+              type: string
+              description: 情報提供者電話番号
+              example: 090-1234-5678
+          description: 提供者情報 (任意)
+        address:
+          type: object
+          properties:
+            prefecture:
+              type: string
+              description: 都道府県
+              example: 群馬県
+            city:
+              type: string
+              description: 市区町村
+              example: 前橋市
+            address:
+              type: string
+              description: 住所
+              example: 大手町1-1-1
+            postal_code:
+              type: string
+              pattern: '^(\d{7}|\d{3}-\d{4})$'
+              description: 郵便番号（7桁の数字または3桁-4桁形式）
+              example: '3710026'
+          description: 住所情報 (任意)
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: string
+                description: Base64エンコードされた画像データ
+                example: 'data:image/png;base64,iVBORw0KGgo...'
+              content_type:
+                type: string
+                enum: *ref_2
+                description: ContentType
+                example: image/png
+              filename:
+                type: string
+                description: ファイル名
+                example: bear-photo.png
+            required:
+              - data
+              - content_type
+              - filename
+            description: 画像データ
+          maxItems: 4
+          description: 画像
+        point_kind_name:
+          type: string
+          enum:
+            - witness
+        additional_data:
+          $ref: '#/components/schemas/WitnessAdditionalData'
+      required:
+        - content
+        - event_time
+        - position
+        - point_kind_name
+      description: 目撃情報の作成
+    CreateTraceRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: 内容
+          example: 熊が柿を食べてた
+        event_time:
+          type: string
+          format: date-time
+          description: 発生時刻(ISO 8601)
+          example: '2025-01-09T10:00:00+09:00'
+        position:
+          type: object
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+              description: 緯度
+              example: 35.6812
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+              description: 経度
+              example: 139.7671
+          required:
+            - lat
+            - lng
+          description: 位置情報
+        status:
+          type: string
+          enum: *ref_1
+          default: active
+          description: ステータス
+          example: active
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+              description: 情報提供者名
+              example: 山田太郎
+            email:
+              type: string
+              format: email
+              description: 情報提供者email
+              example: yamada@example.com
+            phone:
+              type: string
+              description: 情報提供者電話番号
+              example: 090-1234-5678
+          description: 提供者情報 (任意)
+        address:
+          type: object
+          properties:
+            prefecture:
+              type: string
+              description: 都道府県
+              example: 群馬県
+            city:
+              type: string
+              description: 市区町村
+              example: 前橋市
+            address:
+              type: string
+              description: 住所
+              example: 大手町1-1-1
+            postal_code:
+              type: string
+              pattern: '^(\d{7}|\d{3}-\d{4})$'
+              description: 郵便番号（7桁の数字または3桁-4桁形式）
+              example: '3710026'
+          description: 住所情報 (任意)
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: string
+                description: Base64エンコードされた画像データ
+                example: 'data:image/png;base64,iVBORw0KGgo...'
+              content_type:
+                type: string
+                enum: *ref_2
+                description: ContentType
+                example: image/png
+              filename:
+                type: string
+                description: ファイル名
+                example: bear-photo.png
+            required:
+              - data
+              - content_type
+              - filename
+            description: 画像データ
+          maxItems: 4
+          description: 画像
+        point_kind_name:
+          type: string
+          enum:
+            - trace
+        additional_data:
+          $ref: '#/components/schemas/TraceAdditionalData'
+      required:
+        - content
+        - event_time
+        - position
+        - point_kind_name
+      description: 痕跡情報の作成
+    CreateInjuryRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: 内容
+          example: 熊が柿を食べてた
+        event_time:
+          type: string
+          format: date-time
+          description: 発生時刻(ISO 8601)
+          example: '2025-01-09T10:00:00+09:00'
+        position:
+          type: object
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+              description: 緯度
+              example: 35.6812
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+              description: 経度
+              example: 139.7671
+          required:
+            - lat
+            - lng
+          description: 位置情報
+        status:
+          type: string
+          enum: *ref_1
+          default: active
+          description: ステータス
+          example: active
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+              description: 情報提供者名
+              example: 山田太郎
+            email:
+              type: string
+              format: email
+              description: 情報提供者email
+              example: yamada@example.com
+            phone:
+              type: string
+              description: 情報提供者電話番号
+              example: 090-1234-5678
+          description: 提供者情報 (任意)
+        address:
+          type: object
+          properties:
+            prefecture:
+              type: string
+              description: 都道府県
+              example: 群馬県
+            city:
+              type: string
+              description: 市区町村
+              example: 前橋市
+            address:
+              type: string
+              description: 住所
+              example: 大手町1-1-1
+            postal_code:
+              type: string
+              pattern: '^(\d{7}|\d{3}-\d{4})$'
+              description: 郵便番号（7桁の数字または3桁-4桁形式）
+              example: '3710026'
+          description: 住所情報 (任意)
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: string
+                description: Base64エンコードされた画像データ
+                example: 'data:image/png;base64,iVBORw0KGgo...'
+              content_type:
+                type: string
+                enum: *ref_2
+                description: ContentType
+                example: image/png
+              filename:
+                type: string
+                description: ファイル名
+                example: bear-photo.png
+            required:
+              - data
+              - content_type
+              - filename
+            description: 画像データ
+          maxItems: 4
+          description: 画像
+        point_kind_name:
+          type: string
+          enum:
+            - injury
+        additional_data:
+          $ref: '#/components/schemas/InjuryAdditionalData'
+      required:
+        - content
+        - event_time
+        - position
+        - point_kind_name
+      description: 人身被害情報の作成
+    CreateDamageRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: 内容
+          example: 熊が柿を食べてた
+        event_time:
+          type: string
+          format: date-time
+          description: 発生時刻(ISO 8601)
+          example: '2025-01-09T10:00:00+09:00'
+        position:
+          type: object
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+              description: 緯度
+              example: 35.6812
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+              description: 経度
+              example: 139.7671
+          required:
+            - lat
+            - lng
+          description: 位置情報
+        status:
+          type: string
+          enum: *ref_1
+          default: active
+          description: ステータス
+          example: active
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+              description: 情報提供者名
+              example: 山田太郎
+            email:
+              type: string
+              format: email
+              description: 情報提供者email
+              example: yamada@example.com
+            phone:
+              type: string
+              description: 情報提供者電話番号
+              example: 090-1234-5678
+          description: 提供者情報 (任意)
+        address:
+          type: object
+          properties:
+            prefecture:
+              type: string
+              description: 都道府県
+              example: 群馬県
+            city:
+              type: string
+              description: 市区町村
+              example: 前橋市
+            address:
+              type: string
+              description: 住所
+              example: 大手町1-1-1
+            postal_code:
+              type: string
+              pattern: '^(\d{7}|\d{3}-\d{4})$'
+              description: 郵便番号（7桁の数字または3桁-4桁形式）
+              example: '3710026'
+          description: 住所情報 (任意)
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: string
+                description: Base64エンコードされた画像データ
+                example: 'data:image/png;base64,iVBORw0KGgo...'
+              content_type:
+                type: string
+                enum: *ref_2
+                description: ContentType
+                example: image/png
+              filename:
+                type: string
+                description: ファイル名
+                example: bear-photo.png
+            required:
+              - data
+              - content_type
+              - filename
+            description: 画像データ
+          maxItems: 4
+          description: 画像
+        point_kind_name:
+          type: string
+          enum:
+            - damage
+        additional_data:
+          $ref: '#/components/schemas/DamageAdditionalData'
+      required:
+        - content
+        - event_time
+        - position
+        - point_kind_name
+      description: 物損被害情報の作成
+    CreateRequest:
+      oneOf:
+        - $ref: '#/components/schemas/CreateWitnessRequest'
+        - $ref: '#/components/schemas/CreateTraceRequest'
+        - $ref: '#/components/schemas/CreateInjuryRequest'
+        - $ref: '#/components/schemas/CreateDamageRequest'
+      discriminator:
+        propertyName: point_kind_name
+        mapping:
+          witness: '#/components/schemas/CreateWitnessRequest'
+          trace: '#/components/schemas/CreateTraceRequest'
+          injury: '#/components/schemas/CreateInjuryRequest'
+          damage: '#/components/schemas/CreateDamageRequest'
+      description: 新規ポイントの作成
+    UpdateRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ポイントID
+          example: 550e8400-e29b-41d4-a716-446655440000
+        content:
+          type: string
+          description: 内容
+        point_kind_name:
+          type: string
+          enum: *ref_0
+          description: ポイント種別
+          example: witness
+        event_time:
+          type: string
+          format: date-time
+          description: 発生時刻
+        position:
+          type: object
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+              description: 緯度
+              example: 35.6812
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+              description: 経度
+              example: 139.7671
+          required:
+            - lat
+            - lng
+          description: 位置情報
+        status:
+          type: string
+          enum: *ref_1
+          description: ステータス
+          example: active
+        additional_data:
+          anyOf:
+            - $ref: '#/components/schemas/WitnessAdditionalData'
+            - $ref: '#/components/schemas/TraceAdditionalData'
+            - $ref: '#/components/schemas/InjuryAdditionalData'
+            - $ref: '#/components/schemas/DamageAdditionalData'
+            - type: object
+              additionalProperties:
+                nullable: true
+            - nullable: true
+          description: 追加情報 (point_kind_nameに応じたスキーマを使用してください)
+      required:
+        - id
+      description: ポイントの編集
+    DeleteRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ポイントID
+          example: 550e8400-e29b-41d4-a716-446655440000
+      required:
+        - id
+      description: ポイントの削除
+    Point:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ポイントID
+          example: 550e8400-e29b-41d4-a716-446655440000
+        content:
+          type: string
+          description: 内容・説明
+          example: 登山道でクマの足跡を発見
+        point_kind_id:
+          type: string
+          format: uuid
+          description: ポイント種別ID
+        event_time:
+          type: string
+          format: date-time
+          description: 発生日時
+          example: '2025-01-09T10:00:00+09:00'
+        location:
+          type: object
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+              description: 緯度
+              example: 35.6812
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+              description: 経度
+              example: 139.7671
+          required:
+            - lat
+            - lng
+          description: 位置情報
+        tenant_id:
+          type: string
+          nullable: true
+          format: uuid
+          description: テナントID
+        status:
+          type: string
+          enum: *ref_1
+          description: ステータス
+          example: active
+        additional_data:
+          type: object
+          nullable: true
+          additionalProperties:
+            nullable: true
+          description: 追加データ (point_kind_nameに応じた構造)
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新日時
+        source:
+          type: string
+          nullable: true
+          description: データソース
+          example: manual
+        author_name:
+          type: string
+          nullable: true
+          description: 情報提供者名
+          example: 山田太郎
+        author_email:
+          type: string
+          nullable: true
+          description: 情報提供者email
+          example: yamada@example.com
+        author_phone:
+          type: string
+          nullable: true
+          description: 情報提供者電話番号
+          example: 090-1234-5678
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                description: 画像ID
+              path:
+                type: string
+                description: 画像パス
+                example: kuma/point-id/timestamp_0_photo.jpg
+              content:
+                type: string
+                nullable: true
+                description: 画像ファイル名
+                example: photo.jpg
+              uploaded_at:
+                type: string
+                format: date-time
+                description: アップロード日時
+            required:
+              - id
+              - path
+              - content
+              - uploaded_at
+            description: 画像情報
+          description: 画像配列
+        prefecture:
+          type: string
+          nullable: true
+          description: 都道府県
+          example: 群馬県
+        city:
+          type: string
+          nullable: true
+          description: 市区町村
+          example: 前橋市
+        address:
+          type: string
+          nullable: true
+          description: 住所
+          example: 大手町1-1-1
+        postal_code:
+          type: string
+          nullable: true
+          description: 郵便番号
+          example: '3710026'
+        tenant_slug:
+          type: string
+          nullable: true
+          description: テナントスラッグ
+          example: maebashi-city
+        tenant_name:
+          type: string
+          nullable: true
+          description: テナント名
+          example: 前橋市
+        name:
+          type: string
+          enum: *ref_0
+          description: ポイント種別名
+          example: witness
+        output_name:
+          type: string
+          description: ポイント種別表示名
+          example: クマ目撃
+        point_kind:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: ポイント種別ID
+            name:
+              type: string
+              enum: *ref_0
+              description: ポイント種別名
+              example: witness
+          required:
+            - id
+            - name
+          description: ポイント種別オブジェクト
+      required:
+        - id
+        - content
+        - event_time
+        - location
+        - tenant_id
+        - status
+        - additional_data
+      description: ポイント情報 (points_latest RPCからの返り値)
+    ListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Point'
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - data
+        - limit
+        - offset
+      description: Response for list action
+    PointResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Point'
+      required:
+        - data
+      description: Response for create or update action
+    DeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+      required:
+        - success
+      description: Response for delete action
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: Invalid or expired API key
+      required:
+        - error
+      description: Error response
+  parameters: {}
+paths:
+  /api-points-list:
+    post:
+      description: List points for the authenticated tenant
+      summary: List points
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListRequest'
+            example:
+              limit: 5
+              offset: 0
+              point_kind_ids:
+                - witness
+                - trace
+              prefecture: 群馬県
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid or expired API key
+          content:
+            application/json: &ref_3
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Invalid or expired API key
+        '403':
+          description: Forbidden - Missing required scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: 'Missing required scope: points:read'
+        '405':
+          description: Method not allowed
+          content:
+            application/json: &ref_4
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Method not allowed. Use POST.
+        '500':
+          description: Internal server error
+          content:
+            application/json: &ref_5
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api-points-create:
+    post:
+      description: Create a new point
+      summary: Create point
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequest'
+            examples:
+              witness:
+                summary: Create witness point
+                value:
+                  content: 2頭のクマを目撃
+                  point_kind_name: witness
+                  event_time: '2025-01-10T14:30:00+09:00'
+                  position:
+                    lat: 36.3912
+                    lng: 138.6123
+                  additional_data:
+                    count: 2
+                    state: with_cubs
+                    gender: female
+              trace:
+                summary: Create trace point
+                value:
+                  content: Bear tracks found near hiking trail
+                  point_kind_name: trace
+                  event_time: '2025-01-09T10:00:00+09:00'
+                  position:
+                    lat: 35.6812
+                    lng: 139.7671
+                  additional_data:
+                    trace_kind: footprint
+                  author:
+                    name: 山田太郎
+                    email: yamada@example.com
+                  address:
+                    prefecture: 群馬県
+                    city: 前橋市
+      responses:
+        '201':
+          description: Point created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PointResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid or expired API key
+          content:
+            application/json: *ref_3
+        '403':
+          description: Forbidden - Missing required scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: 'Missing required scope: points:write'
+        '405':
+          description: Method not allowed
+          content:
+            application/json: *ref_4
+        '500':
+          description: Internal server error
+          content:
+            application/json: *ref_5
+  /api-points-delete:
+    post:
+      description: Delete a point
+      summary: Delete point
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteRequest'
+            example:
+              id: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: Point deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Point ID required
+        '401':
+          description: Unauthorized - Invalid or expired API key
+          content:
+            application/json: *ref_3
+        '403':
+          description: Forbidden - Missing required scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: 'Missing required scope: points:delete'
+        '405':
+          description: Method not allowed
+          content:
+            application/json: *ref_4
+        '500':
+          description: Internal server error
+          content:
+            application/json: *ref_5
