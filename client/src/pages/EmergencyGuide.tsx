@@ -31,7 +31,8 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  ExternalLink
+  ExternalLink,
+  Navigation
 } from "lucide-react";
 import Footer from "@/components/Footer";
 
@@ -423,8 +424,30 @@ export default function EmergencyGuide() {
             </AccordionItem>
           </div>
 
+          {/* GPS Danger Check CTA */}
+          <Card className="mt-6 p-4 sm:p-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-full">
+                <Navigation className="h-6 w-6" />
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <h3 className="text-lg font-bold mb-1">現在地の危険度を確認</h3>
+                <p className="text-sm opacity-90">
+                  GPSを使って、今いる場所の周辺でクマが出没しているか確認できます。
+                  位置情報はサーバーに送信されません。
+                </p>
+              </div>
+              <Button variant="secondary" asChild>
+                <Link href="/">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  マップで確認
+                </Link>
+              </Button>
+            </div>
+          </Card>
+
           {/* Bottom CTA */}
-          <Card className="mt-6 p-4 sm:p-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+          <Card className="mt-4 p-4 sm:p-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="text-lg font-bold mb-1">クマ出没情報をメールで受け取る</h3>

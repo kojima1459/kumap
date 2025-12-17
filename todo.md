@@ -311,3 +311,30 @@
 ## 通知設定ページの簡素化（追加要望）
 - [x] アプリ通知（要ログイン）タブを削除
 - [x] メール通知のみのシンプルなページに変更
+
+
+## GPS連携による現在地周辺危険度表示機能（追加要望）
+- [x] コアユーティリティ実装
+  - [x] Haversine距離計算関数（client/src/lib/geoUtils.ts）
+  - [x] 逆ジオコーディング（座標→都道府県）
+  - [x] 都道府県境界データ（PREFECTURE_BOUNDS in geoUtils.ts）
+- [x] Service Worker・キャッシュ戦略
+  - [x] 都道府県別データキャッシュ（client/public/sw.js）
+  - [x] オフライン対応
+  - [x] キャッシュ更新ロジック
+- [x] GPS危険度コンポーネント
+  - [x] NearbyDangerIndicator.tsx
+  - [x] 位置情報取得フック（useGeolocation.ts）
+  - [x] 危険度計算ロジック
+- [x] 関連ページへの統合
+  - [x] MapView.tsx（メインマップ）
+  - [x] About.tsx（機能説明追加）
+  - [x] EmergencyGuide.tsx（緊急対策ページ）
+- [x] プライバシー同意UI
+  - [x] LocationConsentModal.tsx
+  - [x] 同意状態の管理（localStorage）
+  - [x] 設定画面での無効化オプション
+- [x] オフライン対応・テスト
+  - [x] オフライン時の表示（キャッシュデータ使用）
+  - [x] データ鮮度の警告表示
+  - [x] テスト実装（geoUtils.test.ts - 28テスト全て合格）

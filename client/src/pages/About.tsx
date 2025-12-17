@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, BarChart3, Info, Database, Clock, Shield, ExternalLink, Bell, Mail, CheckCircle } from "lucide-react";
+import { MapPin, BarChart3, Info, Database, Clock, Shield, ExternalLink, Bell, Mail, CheckCircle, Navigation } from "lucide-react";
 import Footer from "@/components/Footer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -257,6 +257,15 @@ export default function About() {
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white">メール通知</h3>
                   <p className="text-gray-600 dark:text-gray-300">選んだ地域で新しい出没情報があると、メールでお知らせします。</p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                  <Navigation className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">現在地周辺の危険度（新機能）</h3>
+                  <p className="text-gray-600 dark:text-gray-300">GPSを使って、今いる場所の周辺でクマが出ているか確認できます。位置情報はサーバーに送信されません。</p>
                 </div>
               </div>
             </div>

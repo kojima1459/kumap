@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SeasonalWarningBanner } from "@/components/SeasonalWarningBanner";
+import { NearbyDangerIndicator } from "@/components/NearbyDangerIndicator";
 
 const PREFECTURES = [
   "全国",
@@ -445,6 +446,16 @@ export default function MapView() {
             </p>
           </div>
         )}
+
+        {/* GPS-based Nearby Danger Indicator */}
+        <div className="mb-4">
+          <NearbyDangerIndicator
+            sightings={sightings || []}
+            radiusKm={5}
+            daysBack={30}
+            className=""
+          />
+        </div>
 
         {/* Filter Component */}
         <MapFilter
