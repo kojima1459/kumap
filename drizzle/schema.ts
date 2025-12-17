@@ -132,3 +132,31 @@ export const emailSubscriptions = mysqlTable("email_subscriptions", {
 
 export type EmailSubscription = typeof emailSubscriptions.$inferSelect;
 export type InsertEmailSubscription = typeof emailSubscriptions.$inferInsert;
+
+/**
+ * Push notification subscriptions for PWA
+ * Stores Web Push API subscription data for each device
+ */
+export const pushSubscriptions = mysqlTable("push_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Web Push endpoint URL */
+  endpoint: text("endpoint").notNull(),
+  /** p256dh key for encryption */
+  p256dh: varchar("p256dh", { length: 128 }).notNull(),
+  /** auth secret for encryption */
+  auth: varchar("auth", { length: 32 }).notNull(),
+  /** Prefecture to receive notifications for */
+  prefecture: varchar("prefecture", { length: 20 }).notNull(),
+  /** User agent for debugging */
+  userAgent: text("user_agent"),
+  /** Whether the subscription is active */
+  active: int("active").default(1).notNull(), // 1 = active, 0 = unsubscribed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  prefectureIdx: index("push_prefecture_idx").on(table.prefecture),
+  activeIdx: index("push_active_idx").on(table.active),
+}));
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;

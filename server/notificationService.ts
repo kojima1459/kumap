@@ -7,6 +7,7 @@ import { notifyOwner } from "./_core/notification";
 import { getUsersSubscribedToPrefecture, logNotification } from "./notificationDb";
 import { getActiveSubscriptionsForPrefecture } from "./emailSubscriptionDb";
 import { sendSightingNotificationEmail } from "./emailService";
+import { sendPushNotificationsToPrefecture } from "./pushNotificationService";
 
 interface BearSighting {
   id: number;
@@ -116,6 +117,30 @@ ${sighting.description ? `\n詳細: ${sighting.description}` : ""}
           });
         }
       }
+    }
+
+    // 3. Send push notifications to PWA subscribers
+    try {
+      const location = sighting.city ? `${sighting.prefecture} ${sighting.city}` : sighting.prefecture;
+      const timeStr = formatDate(sighting.sightedAt);
+      
+      const pushResult = await sendPushNotificationsToPrefecture(sighting.prefecture, {
+        title: `🐻 ${sighting.prefecture}でクマ出没情報`,
+        body: `${location}で${timeStr}にクマが目撃されました。タップして詳細を確認してください。`,
+        icon: "/kumap-logo.webp",
+        badge: "/icon-192.png",
+        url: `/?prefecture=${encodeURIComponent(sighting.prefecture)}`,
+        tag: `sighting-${sighting.id}`,
+      });
+
+      sentCount += pushResult.sent;
+      failedCount += pushResult.failed;
+
+      if (pushResult.sent > 0) {
+        console.log(`[Notification] Push notifications sent: ${pushResult.sent}`);
+      }
+    } catch (error) {
+      console.error("[Notification] Error sending push notifications:", error);
     }
 
     if (emailSubscriptions.length === 0 && appSubscriptions.length === 0) {

@@ -4,12 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Bell, ChevronLeft, Mail, AlertTriangle, CheckCircle } from "lucide-react";
+import { Bell, ChevronLeft, Mail, AlertTriangle, CheckCircle, Smartphone } from "lucide-react";
 import Footer from "@/components/Footer";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { usePushNotification } from "@/hooks/usePushNotification";
 
 const PREFECTURES = [
   "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
@@ -29,6 +31,10 @@ export default function NotificationSettings() {
   const [email, setEmail] = useState("");
   const [selectedPrefectures, setSelectedPrefectures] = useState<string[]>([]);
   const [emailSubmitted, setEmailSubmitted] = useState(false);
+
+  // Push notification state
+  const [pushPrefecture, setPushPrefecture] = useState<string>("");
+  const pushNotification = usePushNotification();
 
   const emailSubscribeMutation = trpc.emailSubscription.subscribe.useMutation({
     onSuccess: (data) => {
@@ -72,6 +78,28 @@ export default function NotificationSettings() {
     });
   };
 
+  const handlePushSubscribe = async () => {
+    if (!pushPrefecture) {
+      toast.error("都道府県を選択してください");
+      return;
+    }
+    const success = await pushNotification.subscribe(pushPrefecture);
+    if (success) {
+      toast.success("プッシュ通知を登録しました");
+    } else if (pushNotification.error) {
+      toast.error(pushNotification.error);
+    }
+  };
+
+  const handlePushUnsubscribe = async () => {
+    const success = await pushNotification.unsubscribe();
+    if (success) {
+      toast.success("プッシュ通知を解除しました");
+    } else if (pushNotification.error) {
+      toast.error(pushNotification.error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       {/* Header */}
@@ -87,7 +115,7 @@ export default function NotificationSettings() {
             </Button>
             <div className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-orange-500" />
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">メール通知設定</h1>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">通知設定</h1>
             </div>
           </div>
           <ThemeToggle />
@@ -95,12 +123,116 @@ export default function NotificationSettings() {
       </header>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-8 max-w-2xl flex-1">
+      <main className="container mx-auto px-4 py-8 max-w-2xl flex-1 space-y-6">
+        {/* Push Notification Card */}
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5 text-orange-500" />
+              <CardTitle className="dark:text-gray-100">プッシュ通知</CardTitle>
+            </div>
+            <CardDescription className="dark:text-gray-400">
+              ブラウザを閉じていても、新しいクマ出没情報をリアルタイムで受け取れます。
+              {!pushNotification.isSupported && (
+                <span className="block mt-1 text-yellow-600 dark:text-yellow-400">
+                  ※ このブラウザはプッシュ通知に対応していません
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pushNotification.isSupported ? (
+              <div className="space-y-4">
+                {pushNotification.isSubscribed ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                      <div className="text-sm text-green-700 dark:text-green-400">
+                        <p className="font-medium">プッシュ通知が有効です</p>
+                        <p className="mt-1">
+                          新しいクマ出没情報が追加されると、このデバイスに通知が届きます。
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handlePushUnsubscribe}
+                      disabled={pushNotification.isLoading}
+                      className="w-full"
+                    >
+                      {pushNotification.isLoading ? "処理中..." : "プッシュ通知を解除"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pushNotification.permission === "denied" ? (
+                      <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                        <div className="text-sm text-red-700 dark:text-red-400">
+                          <p className="font-medium">通知がブロックされています</p>
+                          <p className="mt-1">
+                            ブラウザの設定から通知の許可を有効にしてください。
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="dark:text-gray-200">通知を受け取る都道府県</Label>
+                          <Select value={pushPrefecture} onValueChange={setPushPrefecture}>
+                            <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600">
+                              <SelectValue placeholder="都道府県を選択" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PREFECTURES.map((pref) => (
+                                <SelectItem key={pref} value={pref}>
+                                  {pref}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            プッシュ通知は1つの都道府県のみ選択できます。複数の都道府県を登録したい場合はメール通知をご利用ください。
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handlePushSubscribe}
+                          disabled={pushNotification.isLoading || !pushPrefecture}
+                          className="w-full"
+                        >
+                          {pushNotification.isLoading ? "登録中..." : "プッシュ通知を有効にする"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
+                <div className="text-sm text-yellow-700 dark:text-yellow-400">
+                  <p className="font-medium">プッシュ通知は利用できません</p>
+                  <p className="mt-1">
+                    このブラウザまたはデバイスはプッシュ通知に対応していません。
+                    メール通知をご利用ください。
+                  </p>
+                  <ul className="mt-2 list-disc list-inside space-y-1 text-xs">
+                    <li>iOSの場合：Safari 16.4以降でホーム画面に追加が必要です</li>
+                    <li>Androidの場合：Chrome、Firefox、Edgeで利用可能です</li>
+                    <li>PCの場合：Chrome、Firefox、Edge、Safariで利用可能です</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Email Notification Card */}
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Mail className="h-5 w-5 text-orange-500" />
-              <CardTitle className="dark:text-gray-100">メール通知登録</CardTitle>
+              <CardTitle className="dark:text-gray-100">メール通知</CardTitle>
             </div>
             <CardDescription className="dark:text-gray-400">
               ログイン不要でメール通知を受け取れます。

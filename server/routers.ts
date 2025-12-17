@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { scraperRouter } from "./scraperRouter";
 import { notificationRouter } from "./notificationRouter";
 import { emailSubscriptionRouter } from "./emailSubscriptionRouter";
+import { pushNotificationRouter } from "./pushNotificationRouter";
 import { statsRouter } from "./statsRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { adminProcedure } from "./adminProcedure";
@@ -36,6 +37,7 @@ export const appRouter = router({
 
   notifications: notificationRouter,
   emailSubscription: emailSubscriptionRouter,
+  pushNotification: pushNotificationRouter,
 
   bearSightings: router({
     /**

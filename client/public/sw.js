@@ -232,3 +232,109 @@ async function getCacheStatus() {
   
   return status;
 }
+
+/**
+ * Push notification handler
+ * Receives push events from the server and displays notifications
+ */
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push notification received');
+  
+  let data = {
+    title: 'クマップ',
+    body: '新しいクマ出没情報があります',
+    icon: '/kumap-logo.webp',
+    badge: '/icon-192.png',
+    url: '/',
+    tag: 'kumap-notification',
+  };
+  
+  try {
+    if (event.data) {
+      const payload = event.data.json();
+      data = { ...data, ...payload };
+    }
+  } catch (error) {
+    console.error('[SW] Failed to parse push data:', error);
+  }
+  
+  const options = {
+    body: data.body,
+    icon: data.icon,
+    badge: data.badge,
+    tag: data.tag,
+    data: {
+      url: data.url,
+    },
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
+    actions: [
+      {
+        action: 'open',
+        title: '詳細を見る',
+      },
+      {
+        action: 'close',
+        title: '閉じる',
+      },
+    ],
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+/**
+ * Notification click handler
+ * Opens the app when user clicks on a notification
+ */
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event.action);
+  
+  event.notification.close();
+  
+  if (event.action === 'close') {
+    return;
+  }
+  
+  const url = event.notification.data?.url || '/';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if there's already a window open
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      // Open a new window if none exists
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
+});
+
+/**
+ * Push subscription change handler
+ * Re-subscribes when the subscription expires
+ */
+self.addEventListener('pushsubscriptionchange', (event) => {
+  console.log('[SW] Push subscription changed');
+  
+  event.waitUntil(
+    self.registration.pushManager.subscribe(event.oldSubscription.options).then((subscription) => {
+      // Notify the main thread about the new subscription
+      self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: 'PUSH_SUBSCRIPTION_CHANGED',
+            payload: subscription.toJSON(),
+          });
+        });
+      });
+    })
+  );
+});
