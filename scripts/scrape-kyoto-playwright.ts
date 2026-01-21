@@ -85,10 +85,10 @@ async function fetchYearDataDirect(page: Page, layerId: string, yearLabel: strin
   
   try {
     await page.goto(searchUrl, { waitUntil: "networkidle", timeout: 60000 });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(5000); // 待機時間を延長
     
-    // テーブルが表示されるまで待機
-    const tableExists = await page.locator('table[role="grid"]').isVisible({ timeout: 10000 }).catch(() => false);
+    // テーブルが表示されるまで待機（より具体的なセレクタを使用）
+    const tableExists = await page.locator('table[role="grid"]#parent-grid_').isVisible({ timeout: 15000 }).catch(() => false);
     
     if (!tableExists) {
       console.log(`[KyotoScraper] ${yearLabel}: Table not found`);
@@ -104,7 +104,7 @@ async function fetchYearDataDirect(page: Page, layerId: string, yearLabel: strin
       
       // テーブルからデータを抽出
       const pageRecords = await page.evaluate(() => {
-        const rows = document.querySelectorAll('table[role="grid"] tr[role="row"]');
+        const rows = document.querySelectorAll('table[role="grid"]#parent-grid_ tr[role="row"]');
         const data: Array<{ date: string; location: string }> = [];
         
         rows.forEach((row) => {
@@ -144,10 +144,16 @@ async function fetchYearDataDirect(page: Page, layerId: string, yearLabel: strin
         break;
       }
       
-      // 次のページに移動
+      // 次のページに移動（AJAX更新を待機）
       await nextButton.click();
-      await page.waitForLoadState("networkidle", { timeout: 30000 });
-      await page.waitForTimeout(1000); // 少し待機
+      
+      // AJAXリクエストの完了を待つ
+      await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {
+        console.log(`[KyotoScraper] ${yearLabel}: Network idle timeout`);
+      });
+      
+      // 追加の待機時間（AJAX更新が完了するまで）
+      await page.waitForTimeout(3000);
       
       pageNum++;
     }
