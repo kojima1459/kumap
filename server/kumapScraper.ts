@@ -9,6 +9,8 @@ import { getDb } from "./db";
 import { bearSightings, InsertBearSighting } from "../drizzle/schema";
 import { kumapClient, KumapPoint } from "./kumapClient";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
+import * as fs from "fs";
+import * as path from "path";
 
 // くまっぷのポイントをbearSightingsの形式に変換
 function convertKumapPointToSighting(point: KumapPoint): InsertBearSighting {
@@ -197,9 +199,12 @@ export async function scrapeKumapData(options: {
   console.log(`  - Prefecture filter: ${prefecture || "全国"}`);
   console.log(`  - Dry run: ${dryRun}`);
 
-  const db = await getDb();
-  if (!db) {
-    throw new Error("Database connection is not available");
+  // データベース接続を試行
+  let db: Awaited<ReturnType<typeof getDb>> = null;
+  try {
+    db = await getDb();
+  } catch (error) {
+    console.warn("[KumapScraper] Database connection not available, will save to JSON file");
   }
 
   // 日付範囲の設定
@@ -227,6 +232,26 @@ export async function scrapeKumapData(options: {
 
   // 全ポイントを変換
   const sightings = points.map(convertKumapPointToSighting);
+
+  // データベース接続がない場合はJSONファイルに保存
+  if (!db) {
+    const dataDir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    
+    const timestamp = Date.now();
+    const jsonPath = path.join(dataDir, `kumap_bear_sightings_${timestamp}.json`);
+    fs.writeFileSync(jsonPath, JSON.stringify(sightings, null, 2));
+    console.log(`[KumapScraper] Saved ${sightings.length} records to ${jsonPath}`);
+    
+    return {
+      total: points.length,
+      imported: sightings.length,
+      duplicates: 0,
+      errors: 0,
+    };
+  }
 
   // バッチ重複チェック
   console.log(`[KumapScraper] Checking for duplicates...`);
